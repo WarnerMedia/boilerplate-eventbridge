@@ -1,0 +1,81 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Create an Events Schema Registry - (v1.0.0)"
+Parameters:
+  # General Configuration
+  InfrastructureName:
+    Type: "String"
+    Description: "A name used to differentiate this infrastructure from other existing infrastructure."
+    Default: "main"
+  RegistryName:
+    Type: "String"
+    Description: "The name of the events schema registry."
+  RegistryDescription:
+    Type: "String"
+    Description: "The description of the events schema registry."
+  # Tags
+  TagEnvironment:
+    Type: "String"
+    Description: "What is the environment tag?"
+    AllowedValues:
+    - "dev"
+    - "int"
+    - "qa"
+    - "stage"
+    - "prod"
+    Default: "int"
+Conditions:
+  Production: !Equals [ !Ref TagEnvironment, "prod" ]
+Resources:
+  Registry:
+    Type: "AWS::EventSchemas::Registry"
+    Properties:
+      RegistryName: !If [ Production, !Ref RegistryName, !Sub "${RegistryName}.${TagEnvironment}" ]
+      Description: !Ref RegistryDescription
+      Tags:
+      - Key: "Name"
+        Value: !Ref "AWS::StackName"
+      - Key: "application"
+        Value: !Ref "AWS::StackName"
+      - Key: "contact-email"
+        Value: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/contact-email:1}}"
+      - Key: "customer"
+        Value: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/customer:1}}"
+      - Key: "environment"
+        Value: !Ref TagEnvironment
+      - Key: "team"
+        Value: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/team:1}}"
+Outputs:
+  RegistryArn:
+    Description: "The event schema registry ARN."
+    Value: !GetAtt Registry.RegistryArn
+    Export:
+      Name: !Sub "${AWS::StackName}-RegistryArn"
+  RegistryName:
+    Description: "The event schema registry name."
+    Value: !GetAtt Registry.RegistryName
+    Export:
+      Name: !Sub "${AWS::StackName}-RegistryName"
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: "General Configuration"
+      Parameters:
+      - InfrastructureName
+      - RegistryName
+      - RegistryDescription
+    - Label:
+        default: "Tags"
+      Parameters:
+      - TagEnvironment
+    ParameterLabels:
+      # General Configuration
+      InfrastructureName:
+        default: "Infrastructure Name:"
+      RegistryName:
+        default: "Registry Name:"
+      RegistryDescription:
+        default: "Registry Description:"
+      # Tags
+      TagEnvironment:
+        default: "Environment:"

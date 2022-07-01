@@ -1,0 +1,212 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Create a custom EventBridge bus - (v1.1.0)"
+Parameters:
+  # General Configuration
+  InfrastructureName:
+    Type: "String"
+    Description: "A name used to differentiate this infrastructure from other existing infrastructure."
+    Default: "main"
+  BusName:
+    Type: "String"
+    Description: "The name of the events bus."
+  ProjectName:
+    Type: "String"
+    Description: "The specific name of the project."
+  # Archive Configuration
+  ArchiveDefaultRetentionDays:
+    Type: "Number"
+    Description: "The default retention days for an archive."
+    Default: 10
+  # Testing Configuration
+  EnableDiscoverer:
+    Type: "String"
+    Description: "Should the schema discoverer be enabled?"
+    AllowedValues:
+    - "Yes"
+    - "No"
+    Default: "No"
+  # Testing Configuration
+  EnableTestRule:
+    Type: "String"
+    Description: "Should the test rule, queue, and archive be enabled?"
+    AllowedValues:
+    - "Yes"
+    - "No"
+    Default: "No"
+  TestRuleDetailContext:
+    Type: "String"
+    Description: "The detail context for the test rule."
+    Default: "test"
+  # Tags
+  TagEnvironment:
+    Type: "String"
+    Description: "What is the environment tag?"
+    AllowedValues:
+    - "dev"
+    - "int"
+    - "qa"
+    - "stage"
+    - "prod"
+    Default: "int"
+Conditions:
+  EnableTestRule: !Equals [ !Ref EnableTestRule, "Yes" ]
+  EnableDiscoverer: !Equals [ !Ref EnableDiscoverer, "Yes" ]
+Resources:
+  # Event Bus Configuration
+  Bus:
+    Type: "AWS::Events::EventBus"
+    Properties:
+      Name: !Sub "${BusName}-${InfrastructureName}-${TagEnvironment}"
+  Discoverer:
+    Type: "AWS::EventSchemas::Discoverer"
+    Condition: EnableDiscoverer
+    Properties:
+      SourceArn: !GetAtt Bus.Arn
+      Description: !Sub "Discover all ${Bus.Name} schemas."
+  # Event Rules Configuration
+  TestBusEventRule:
+    Type: "AWS::Events::Rule"
+    Condition: "EnableTestRule"
+    Properties:
+      Name: !Sub "${BusName}-${InfrastructureName}-${TagEnvironment}-${TestRuleDetailContext}"
+      Description: "Test Logs Event Rule"
+      State: "ENABLED"
+      EventBusName: !Ref Bus
+      EventPattern:
+        detail:
+          context: [ !Ref TestRuleDetailContext ]
+      Targets:
+      # TODO: Should the ARNs be passed in instead of constructed?
+      - Arn: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}-${TagEnvironment}"
+        DeadLetterConfig:
+          Arn: !Sub "{{resolve:ssm:/sqs/${InfrastructureName}/queue/${ProjectName}-dead-letter/${TagEnvironment}/arn}}"
+        Id: !Sub "${ProjectName}-${TagEnvironment}-function"
+      - Arn: !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${ProjectName}-${TagEnvironment}"
+        DeadLetterConfig:
+          Arn: !Sub "{{resolve:ssm:/sqs/${InfrastructureName}/queue/${ProjectName}-dead-letter/${TagEnvironment}/arn}}"
+        Id: !Sub "${ProjectName}-${TagEnvironment}-sns-topic"
+  # Event Archives Configuration
+  TestArchive:
+    Type: "AWS::Events::Archive"
+    Condition: "EnableTestRule"
+    Properties: 
+      ArchiveName: !Sub "${BusName}-${InfrastructureName}-${TagEnvironment}-${TestRuleDetailContext}"
+      Description: "Test Event Rule Archive"
+      EventPattern:
+        detail:
+          context: [ !Ref TestRuleDetailContext ]
+      RetentionDays: !Ref ArchiveDefaultRetentionDays
+      SourceArn: !GetAtt Bus.Arn
+  ParamBusArn:
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      DataType: "text"
+      Description: "The event bus ARN."
+      Name: !Sub "/events/${InfrastructureName}/bus/${BusName}/${TagEnvironment}/arn"
+      Tier: "Standard"
+      Type: "String"
+      Value: !GetAtt Bus.Arn
+      Tags:
+        Name: !Ref "AWS::StackName"
+        application: !Ref "AWS::StackName"
+        customer: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/customer}}"
+        contact-email: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/contact-email}}"
+        environment: !Ref TagEnvironment
+        team: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/team}}"
+  ParamBusName:
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      DataType: "text"
+      Description: "The event bus name."
+      Name: !Sub "/events/${InfrastructureName}/bus/${BusName}/${TagEnvironment}/name"
+      Tier: "Standard"
+      Type: "String"
+      Value: !Ref Bus
+      Tags:
+        Name: !Ref "AWS::StackName"
+        application: !Ref "AWS::StackName"
+        customer: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/customer}}"
+        contact-email: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/contact-email}}"
+        environment: !Ref TagEnvironment
+        team: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/team}}"
+Outputs:
+  BusArn:
+    Description: "The event bus ARN."
+    Value: !GetAtt Bus.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-BusArn"
+  BusName:
+    Description: "The event bus name."
+    Value: !GetAtt Bus.Name
+    Export:
+      Name: !Sub "${AWS::StackName}-BusName"
+  DiscovererArn:
+    Condition: EnableDiscoverer
+    Description: "The discoverer ARN."
+    Value: !GetAtt Discoverer.DiscovererArn
+    Export:
+      Name: !Sub "${AWS::StackName}-DiscovererArn"
+  DiscovererId:
+    Condition: EnableDiscoverer
+    Description: "The discoverer ID."
+    Value: !GetAtt Discoverer.DiscovererId
+    Export:
+      Name: !Sub "${AWS::StackName}-DiscovererId"
+  ParamBusArn:
+    Description: "The event bus ARN SSM parameter."
+    Value: !Ref ParamBusArn
+    Export:
+      Name: !Sub "${AWS::StackName}-ParamBusArn"
+  ParamBusName:
+    Description: "The event bus name SSM parameter."
+    Value: !Ref ParamBusName
+    Export:
+      Name: !Sub "${AWS::StackName}-ParamBusName"
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: "General Configuration"
+      Parameters:
+      - InfrastructureName
+      - BusName
+      - ProjectName
+    - Label:
+        default: "Archive Configuration"
+      Parameters:
+      - ArchiveDefaultRetentionDays
+    - Label:
+        default: "Discoverer Configuration"
+      Parameters:
+      - EnableDiscoverer
+    - Label:
+        default: "Testing Configuration"
+      Parameters:
+      - EnableTestRule
+      - TestRuleDetailContext
+    - Label:
+        default: "Tags"
+      Parameters:
+      - TagEnvironment
+    ParameterLabels:
+      # General Configuration
+      InfrastructureName:
+        default: "Infrastructure Name:"
+      BusName:
+        default: "Bus Name:"
+      ProjectName:
+        default: "Project Name:"
+      # Archive Configuration
+      ArchiveDefaultRetentionDays:
+        default: "Archive Default Retention Days:"
+      # Discoverer Configuration
+      EnableDiscoverer:
+        default: "Enable Discoverer:"
+      # Testing Configuration
+      EnableTestRule:
+        default: "Enable Test Rule:"
+      TestRuleDetailContext:
+        default: "Test Rule Detail Context:"
+      # Tags
+      TagEnvironment:
+        default: "Environment:"

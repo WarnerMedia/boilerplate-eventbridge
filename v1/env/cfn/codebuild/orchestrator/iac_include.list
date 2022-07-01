@@ -1,0 +1,8 @@
+v1/env/cfn/codebuild/test/*
+v1/env/cfn/codepipeline/*
+v1/env/cfn/events/schemas/registry/*
+v1/env/cfn/iam/role/*
+v1/iac/cfn/codebuild/*
+v1/iac/cfn/codepipeline/*
+v1/iac/cfn/events/schemas/registry.yaml
+v1/iac/cfn/iam/role/*

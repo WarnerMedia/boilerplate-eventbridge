@@ -1,0 +1,24 @@
+{
+  "name": "boilerplate-eventbridge",
+  "version": "1.0.0",
+  "description": "Event bus deployment flow.",
+  "main": "./src/app.js",
+  "repository": {
+    "type": "git"
+  },
+  "scripts": {
+    "test-local": "./local/run.sh event-bridge && ./local/run.sh sns",
+    "test-app": "./node_modules/.bin/cucumber-js --format json:./test/cucumber/output/results.json ./test/cucumber/app/**/*.feature",
+    "test-infrastructure": "./node_modules/.bin/cucumber-js --format json:./test/cucumber/output/results.json ./test/cucumber/infrastructure/**/*.feature"
+  },
+  "author": "Warner Media, LLC",
+  "license": "MIT",
+  "dependencies": {
+    "assert": "^2.0.0",
+    "aws-sdk": "^2.1010.0",
+    "child_process": "^1.0.2",
+    "cucumber": "^6.0.5",
+    "fs": "0.0.1-security"
+  },
+  "devDependencies": {}
+}

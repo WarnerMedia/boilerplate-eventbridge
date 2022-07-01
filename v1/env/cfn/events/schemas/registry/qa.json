@@ -1,0 +1,6 @@
+{
+  "Parameters": {
+    "RegistryName": "standard",
+    "RegistryDescription": "A generic schema registry for the development environment."
+  }
+}

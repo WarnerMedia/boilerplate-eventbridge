@@ -1,0 +1,27 @@
+{
+    "version": "0",
+    "id": "c5f0d614-31c7-26b2-0925-44d36d3895c7",
+    "detail-type": "Item Update",
+    "source": "platform.service.item",
+    "account": "123456789012",
+    "time": "2022-05-21T22:26:00Z",
+    "region": "us-east-2",
+    "resources": [],
+    "detail": {
+        "id": "d7she9s5",
+        "action": "update",
+        "version": "23",
+        "message": "Local test event.",
+        "timestamp": "2022-05-21T22:26:00Z",
+        "url": "https://www.example.com/file/path",
+        "context": [
+            "standard"
+        ],
+        "environment": "local",
+        "tags": [
+            "foo",
+            "bar",
+            "baz"
+        ]
+    }
+}

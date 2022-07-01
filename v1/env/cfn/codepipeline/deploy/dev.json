@@ -1,0 +1,8 @@
+{
+  "Parameters": {
+    "ActionMode": "REPLACE_ON_FAILURE",
+    "CodeBuildRunAppTests": "Yes",
+    "CodeBuildRunInfrastructureTests": "Yes",
+    "EnableTestRule": "Yes"
+  }
+}

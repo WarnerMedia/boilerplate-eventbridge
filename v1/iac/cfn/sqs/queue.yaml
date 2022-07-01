@@ -1,0 +1,256 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Create a new SQS Queue. - (v1.0.0)"
+Parameters:
+  # General Configuration
+  InfrastructureName:
+    Type: "String"
+    Description: "A name used to differentiate this infrastructure from other existing infrastructure."
+    Default: "main"
+  BusName:
+    Type: "String"
+    Description: "The name of the events bus."
+  QueueBaseName:
+    Type: "String"
+    Description: "The base name of the queue."
+    AllowedPattern: "[a-zA-Z0-9-_]+"
+  # Message Configuration
+  DelaySeconds:
+    Type: "Number"
+    Description: "The time in seconds for which the delivery of all messages in the queue is delayed.  Range is 0 to 900."
+    Default: 0
+  MaximumMessageSize:
+    Type: "Number"
+    Description: "The limit of how many bytes that a message can contain before Amazon SQS rejects it.  Range is 1024 to 262144."
+    Default: 262144
+  MessageRetentionPeriod:
+    Type: "Number"
+    Description: "The number of seconds that Amazon SQS retains a message.  Range is 60 to 1209600."
+    Default: 345600
+  ReceiveMessageWaitTimeSeconds:
+    Type: "Number"
+    Description: "Specifies the duration, in seconds, that the ReceiveMessage action call waits until a message is in the queue in order to include it in the response, rather than returning an empty response if a message isn't yet available.  Range is 0 to 20."
+    Default: 0
+  VisibilityTimeout:
+    Type: "Number"
+    Description: "The length of time during which a message will be unavailable after a message is delivered from the queue.  Range is 0 to 43200."
+    Default: 30
+  # KMS Configuration
+  KmsDataKeyReusePeriodSeconds:
+    Type: "Number"
+    Description: "The length of time in seconds for which Amazon SQS can reuse a data key to encrypt or decrypt messages before calling AWS KMS again.  The range is 60 to 86400."
+    Default: 900
+  # FIFO Configuration
+  EnableFifo:
+    Type: "String"
+    Description: "Enable queue FIFO features?"
+    AllowedValues:
+    - "true"
+    - "false"
+    Default: "false"
+  EnableContentBasedDeduplication:
+    Type: "String"
+    Description: "Enable queue FIFO features?"
+    AllowedValues:
+    - "true"
+    - "false"
+    Default: "false"
+  # Tags
+  TagEnvironment:
+    Type: "String"
+    Description: "What is the environment tag?"
+Conditions:
+  EnableFifo: !Equals [ !Ref EnableFifo, "true" ]
+Resources:
+  Queue:
+    Type: "AWS::SQS::Queue"
+    Properties:
+      QueueName: !If [ EnableFifo, !Sub "${QueueBaseName}-${TagEnvironment}.fifo", !Sub "${QueueBaseName}-${TagEnvironment}" ]
+      # FIFO Configuration
+      FifoQueue: !If [ EnableFifo, !Ref EnableFifo, !Ref "AWS::NoValue" ]
+      ContentBasedDeduplication: !If [ EnableFifo, !Ref EnableContentBasedDeduplication, !Ref "AWS::NoValue" ]
+      # KMS Configuration
+      KmsMasterKeyId: !Sub "{{resolve:ssm:/kms/${InfrastructureName}/key/sqs/arn}}"
+      KmsDataKeyReusePeriodSeconds: !Ref KmsDataKeyReusePeriodSeconds
+      # Message Configuration
+      DelaySeconds: !Ref DelaySeconds
+      MaximumMessageSize: !Ref MaximumMessageSize
+      MessageRetentionPeriod: !Ref MessageRetentionPeriod
+      ReceiveMessageWaitTimeSeconds: !Ref ReceiveMessageWaitTimeSeconds
+      VisibilityTimeout: !Ref VisibilityTimeout
+      Tags:
+      - Key: "Name"
+        Value: !Ref "AWS::StackName"
+      - Key: "application"
+        Value: !Ref "AWS::StackName"
+      - Key: "contact-email"
+        Value: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/contact-email}}"
+      - Key: "customer"
+        Value: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/customer}}"
+      - Key: "environment"
+        Value: !Ref TagEnvironment
+      - Key: "team"
+        Value: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/team}}"
+  QueuePolicy:
+    Type: "AWS::SQS::QueuePolicy"
+    Properties:
+      PolicyDocument:
+        Id: !Sub "${QueueBaseName}-${TagEnvironment}"
+        Version: "2012-10-17"
+        Statement:
+        - Sid: !Sub "${QueueBaseName}-${TagEnvironment}-events-access"
+          Effect: "Allow"
+          Principal:
+            Service: "events.amazonaws.com"
+          Action:
+          - "sqs:SendMessage"
+          Resource: !GetAtt Queue.Arn
+          Condition:
+            ArnLike:
+              aws:SourceArn: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${BusName}-${InfrastructureName}-${TagEnvironment}/*"
+        - Sid: !Sub "${QueueBaseName}-${TagEnvironment}-owner-statement"
+          Effect: "Allow"
+          Principal:
+            AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+          Action: "sqs:*"
+          Resource: !GetAtt Queue.Arn
+      Queues:
+      - !Ref Queue
+  ParamQueueArn:
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      DataType: "text"
+      Description: "The SNS queue ARN."
+      Name: !Sub "/sqs/${InfrastructureName}/queue/${QueueBaseName}/${TagEnvironment}/arn"
+      Tier: "Standard"
+      Type: "String"
+      Value: !GetAtt Queue.Arn
+      Tags:
+        Name: !Ref "AWS::StackName"
+        application: !Ref "AWS::StackName"
+        customer: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/customer}}"
+        contact-email: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/contact-email}}"
+        environment: !Ref TagEnvironment
+        team: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/team}}"
+  ParamQueueName:
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      DataType: "text"
+      Description: "The SNS queue name."
+      Name: !Sub "/sqs/${InfrastructureName}/queue/${QueueBaseName}/${TagEnvironment}/name"
+      Tier: "Standard"
+      Type: "String"
+      Value: !GetAtt Queue.QueueName
+      Tags:
+        Name: !Ref "AWS::StackName"
+        application: !Ref "AWS::StackName"
+        customer: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/customer}}"
+        contact-email: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/contact-email}}"
+        environment: !Ref TagEnvironment
+        team: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/team}}"
+  ParamQueueUrl:
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      DataType: "text"
+      Description: "The SNS queue URL."
+      Name: !Sub "/sqs/${InfrastructureName}/queue/${QueueBaseName}/${TagEnvironment}/url"
+      Tier: "Standard"
+      Type: "String"
+      Value: !Ref Queue
+      Tags:
+        Name: !Ref "AWS::StackName"
+        application: !Ref "AWS::StackName"
+        customer: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/customer}}"
+        contact-email: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/contact-email}}"
+        environment: !Ref TagEnvironment
+        team: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/team}}"
+Outputs:
+  QueueArn:
+    Description: "The ARN of this queue."
+    Value: !GetAtt Queue.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-QueueArn"
+  QueueName:
+    Description: "The name of this queue."
+    Value: !GetAtt Queue.QueueName
+    Export:
+      Name: !Sub "${AWS::StackName}-QueueName"
+  QueueUrl:
+    Description: "The URL of this queue."
+    Value: !Ref Queue
+    Export:
+      Name: !Sub "${AWS::StackName}-QueueUrl"
+  ParamQueueArn:
+    Description: "The ARN of this queue SSM parameter."
+    Value: !Ref ParamQueueArn
+    Export:
+      Name: !Sub "${AWS::StackName}-ParamQueueArn"
+  ParamQueueName:
+    Description: "The name of this queue SSM parameter."
+    Value: !Ref ParamQueueName
+    Export:
+      Name: !Sub "${AWS::StackName}-ParamQueueName"
+  ParamQueueUrl:
+    Description: "The URL of this queue SSM parameter."
+    Value: !Ref ParamQueueUrl
+    Export:
+      Name: !Sub "${AWS::StackName}-ParamQueueUrl"
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: "General Configuration"
+      Parameters:
+      - InfrastructureName
+      - BusName
+      - QueueBaseName
+    - Label:
+        default: "Message Configuration"
+      Parameters:
+      - DelaySeconds
+      - MaximumMessageSize
+      - MessageRetentionPeriod
+      - ReceiveMessageWaitTimeSeconds
+      - VisibilityTimeout
+    - Label:
+        default: "KMS Configuration"
+      Parameters:
+      - KmsDataKeyReusePeriodSeconds
+    - Label:
+        default: "FIFO Configuration"
+      Parameters:
+      - EnableFifo
+      - EnableContentBasedDeduplication
+    - Label:
+        default: "Tag Configuration"
+      Parameters:
+      - TagEnvironment
+    ParameterLabels:
+      # General Configuration
+      InfrastructureName:
+        default: "Infrastructure Name:"
+      BusName:
+        default: "Bus Name:"
+      QueueBaseName:
+        default: "Queue Base Name:"
+      # Message Configuration
+      DelaySeconds:
+        default: "Delay (in Seconds):"
+      MaximumMessageSize:
+        default: "Maximum Message Size:"
+      MessageRetentionPeriod:
+        default: "Message Retention Period (in Seconds):"
+      ReceiveMessageWaitTimeSeconds:
+        default: "Receive Message Wait Time (in Seconds):"
+      VisibilityTimeout:
+        default: "Visibility Timeout (in Seconds):"
+      # KMS Configuration
+      KmsDataKeyReusePeriodSeconds:
+        default: "KMS Data Key Reuse Period (in Seconds):"
+      # FIFO Configuration
+      EnableFifo:
+        default: "Enable FIFO:"
+      EnableContentBasedDeduplication:
+        default: "Enable Content Based Deduplication:"
+      # Tags
+      TagEnvironment:
+        default: "Environment:"

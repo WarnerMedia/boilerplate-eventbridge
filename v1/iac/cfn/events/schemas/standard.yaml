@@ -1,0 +1,393 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Create a list of standard event schemas - (v1.0.0)"
+Parameters:
+  # General Configuration
+  InfrastructureName:
+    Type: "String"
+    Description: "A name used to differentiate this infrastructure from other existing infrastructure."
+    Default: "main"
+  RegistryName:
+    Type: "String"
+    Description: "The name of the events schema registry."
+  SchemaType:
+    Type: "String"
+    Description: "The name of the events schema registry."
+    AllowedValues:
+    - "JSONSchemaDraft4"
+    - "OpenApi3"
+    Default: "OpenApi3"
+  # Tags
+  TagEnvironment:
+    Type: "String"
+    Description: "What is the environment tag?"
+    AllowedValues:
+    - "dev"
+    - "int"
+    - "qa"
+    - "stage"
+    - "prod"
+    Default: "int"
+Conditions:
+  Production: !Equals [ !Ref TagEnvironment, "prod" ]
+Resources:
+  PlatformServiceItemCreateSchema:
+    Type: "AWS::EventSchemas::Schema"
+    Properties:
+      RegistryName: !If [ Production, !Ref RegistryName, !Sub "${RegistryName}.${TagEnvironment}" ]
+      Type: !Ref SchemaType
+      Tags:
+      - Key: "Name"
+        Value: !Ref "AWS::StackName"
+      - Key: "application"
+        Value: !Ref "AWS::StackName"
+      - Key: "contact-email"
+        Value: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/contact-email:1}}"
+      - Key: "customer"
+        Value: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/customer:1}}"
+      - Key: "environment"
+        Value: !Ref TagEnvironment
+      - Key: "team"
+        Value: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/team:1}}"
+      SchemaName: "platform.service.item@ItemCreate"
+      Description: "Create a Platform Service Item record."
+      Content: >
+        {
+          "openapi": "3.0.0",
+          "info": {
+            "version": "1.0.0",
+            "title": "ItemCreate"
+          },
+          "paths": {},
+          "components": {
+            "schemas": {
+              "AWSEvent": {
+                "type": "object",
+                "required": ["detail-type", "resources", "id", "source", "time", "detail", "region", "version", "account"],
+                "x-amazon-events-detail-type": "Item Create",
+                "x-amazon-events-source": "platform.service.item",
+                "properties": {
+                  "detail": {
+                    "$ref": "#/components/schemas/ItemCreate"
+                  },
+                  "detail-type": {
+                    "type": "string"
+                  },
+                  "resources": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "type": "string"
+                  },
+                  "time": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "region": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "string"
+                  },
+                  "account": {
+                    "type": "string"
+                  }
+                }
+              },
+              "ItemCreate": {
+                "type": "object",
+                "required": [ "id", "action", "timestamp", "context", "environment" ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": ["create"]
+                  },
+                  "version": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "timestamp": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "context": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "environment": {
+                    "type": "string"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+  PlatformServiceItemUpdateSchema:
+    Type: "AWS::EventSchemas::Schema"
+    Properties:
+      RegistryName: !If [ Production, !Ref RegistryName, !Sub "${RegistryName}.${TagEnvironment}" ]
+      Type: !Ref SchemaType
+      Tags:
+      - Key: "Name"
+        Value: !Ref "AWS::StackName"
+      - Key: "application"
+        Value: !Ref "AWS::StackName"
+      - Key: "contact-email"
+        Value: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/contact-email:1}}"
+      - Key: "customer"
+        Value: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/customer:1}}"
+      - Key: "environment"
+        Value: !Ref TagEnvironment
+      - Key: "team"
+        Value: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/team:1}}"
+      SchemaName: "platform.service.item@ItemUpdate"
+      Description: "Update a Platform Service Item record."
+      Content: >
+        {
+          "openapi": "3.0.0",
+          "info": {
+            "version": "1.0.0",
+            "title": "ItemUpdate"
+          },
+          "paths": {},
+          "components": {
+            "schemas": {
+              "AWSEvent": {
+                "type": "object",
+                "required": ["detail-type", "resources", "id", "source", "time", "detail", "region", "version", "account"],
+                "x-amazon-events-detail-type": "Item Update",
+                "x-amazon-events-source": "platform.service.item",
+                "properties": {
+                  "detail": {
+                    "$ref": "#/components/schemas/ItemUpdate"
+                  },
+                  "detail-type": {
+                    "type": "string"
+                  },
+                  "resources": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "type": "string"
+                  },
+                  "time": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "region": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "string"
+                  },
+                  "account": {
+                    "type": "string"
+                  }
+                }
+              },
+              "ItemUpdate": {
+                "type": "object",
+                "required": [ "id", "action", "timestamp", "context", "environment" ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": ["update"]
+                  },
+                  "version": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "timestamp": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "context": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "environment": {
+                    "type": "string"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+  PlatformServiceItemDeleteSchema:
+    Type: "AWS::EventSchemas::Schema"
+    Properties:
+      RegistryName: !If [ Production, !Ref RegistryName, !Sub "${RegistryName}.${TagEnvironment}" ]
+      Type: !Ref SchemaType
+      Tags:
+      - Key: "Name"
+        Value: !Ref "AWS::StackName"
+      - Key: "application"
+        Value: !Ref "AWS::StackName"
+      - Key: "contact-email"
+        Value: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/contact-email:1}}"
+      - Key: "customer"
+        Value: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/customer:1}}"
+      - Key: "environment"
+        Value: !Ref TagEnvironment
+      - Key: "team"
+        Value: !Sub "{{resolve:ssm:/account/${InfrastructureName}/tag/team:1}}"
+      SchemaName: "platform.service.item@ItemDelete"
+      Description: "Delete a Platform Service Item record."
+      Content: >
+        {
+          "openapi": "3.0.0",
+          "info": {
+            "version": "1.0.0",
+            "title": "ItemDelete"
+          },
+          "paths": {},
+          "components": {
+            "schemas": {
+              "AWSEvent": {
+                "type": "object",
+                "required": ["detail-type", "resources", "id", "source", "time", "detail", "region", "version", "account"],
+                "x-amazon-events-detail-type": "Item Delete",
+                "x-amazon-events-source": "platform.service.item",
+                "properties": {
+                  "detail": {
+                    "$ref": "#/components/schemas/ItemDelete"
+                  },
+                  "detail-type": {
+                    "type": "string"
+                  },
+                  "resources": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "type": "string"
+                  },
+                  "time": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "region": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "string"
+                  },
+                  "account": {
+                    "type": "string"
+                  }
+                }
+              },
+              "ItemDelete": {
+                "type": "object",
+                "required": [ "id", "action", "timestamp", "context", "environment" ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": ["delete"]
+                  },
+                  "version": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "timestamp": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "context": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "environment": {
+                    "type": "string"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: "General Configuration"
+      Parameters:
+      - InfrastructureName
+      - RegistryName
+      - SchemaType
+    - Label:
+        default: "Tags"
+      Parameters:
+      - TagEnvironment
+    ParameterLabels:
+      # General Configuration
+      InfrastructureName:
+        default: "Infrastructure Name:"
+      RegistryName:
+        default: "Registry Name:"
+      SchemaType:
+        default: "Schema Type:"
+      # Tags
+      TagEnvironment:
+        default: "Environment:"

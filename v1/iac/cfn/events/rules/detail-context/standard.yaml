@@ -1,0 +1,147 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Create a rule targeting the detail context. - (v1.1.0)"
+Parameters:
+  # General Configuration
+  InfrastructureName:
+    Type: "String"
+    Description: "A name used to differentiate this infrastructure from other existing infrastructure."
+    Default: "main"
+  BusName:
+    Type: "String"
+    Description: "The name of the events bus."
+  ProjectName:
+    Type: "String"
+    Description: "The specific name of the project."
+  # Rule Configuration
+  RuleDetailContext:
+    Type: "String"
+    Description: "The detail context for the rule."
+  RuleState:
+    Type: "String"
+    Description: "What is the environment tag?"
+    AllowedValues:
+    - "DISABLED"
+    - "ENABLED"
+    Default: "ENABLED"
+  RuleTargetTopicBaseName:
+    Type: "String"
+    Description: "The base name of the topic."
+    AllowedPattern: "[a-zA-Z0-9-_]+"
+    Default: "cms-event"
+  RuleTargetSqsQueueBaseName:
+    Type: "String"
+    Description: "The base name of the SQS Queue."
+    AllowedPattern: "[a-zA-Z0-9-_]+"
+    Default: "cms"
+  # Archive Configuration
+  ArchiveDefaultRetentionDays:
+    Type: "Number"
+    Description: "The default retention days for an archive."
+    Default: 10
+  # Tags
+  TagEnvironment:
+    Type: "String"
+    Description: "What is the environment tag?"
+    AllowedValues:
+    - "dev"
+    - "int"
+    - "qa"
+    - "stage"
+    - "prod"
+    Default: "int"
+Resources:
+  Rule:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Name: !Sub "${BusName}-${InfrastructureName}-${TagEnvironment}-detail-context-${RuleDetailContext}"
+      Description: !Sub "Event detail context \"${RuleDetailContext}\"."
+      State: !Ref RuleState
+      EventBusName: !Sub "{{resolve:ssm:/events/${InfrastructureName}/bus/${BusName}/${TagEnvironment}/name}}"
+      EventPattern:
+        detail:
+          context: [ !Ref RuleDetailContext ]
+      Targets:
+      - Arn: !Sub "{{resolve:ssm:/sns/${InfrastructureName}/topic/${RuleTargetTopicBaseName}/${TagEnvironment}/arn}}"
+        DeadLetterConfig:
+          Arn: !Sub "{{resolve:ssm:/sqs/${InfrastructureName}/queue/${ProjectName}-dead-letter/${TagEnvironment}/arn}}"
+        Id: !Sub "${BusName}-${InfrastructureName}-${TagEnvironment}-detail-context-${RuleDetailContext}-cms-sns-topic"
+      - Arn: !Sub "{{resolve:ssm:/sqs/${InfrastructureName}/queue/${RuleTargetSqsQueueBaseName}-${RuleDetailContext}/${TagEnvironment}/arn}}"
+        DeadLetterConfig:
+          Arn: !Sub "{{resolve:ssm:/sqs/${InfrastructureName}/queue/${ProjectName}-dead-letter/${TagEnvironment}/arn}}"
+        Id: !Sub "${BusName}-${InfrastructureName}-${TagEnvironment}-detail-context-${RuleDetailContext}-cms-sqs-queue"
+        SqsParameters:
+          MessageGroupId: !Sub "${RuleTargetSqsQueueBaseName}-${RuleDetailContext}-${TagEnvironment}"
+  Archive:
+    Type: "AWS::Events::Archive"
+    Properties: 
+      ArchiveName: !Sub "${BusName}-${InfrastructureName}-${TagEnvironment}-detail-context-${RuleDetailContext}"
+      Description: !Sub "Event detail context \"${RuleDetailContext}\" archive."
+      EventPattern:
+        detail:
+          context: [ !Ref RuleDetailContext ]
+      RetentionDays: !Ref ArchiveDefaultRetentionDays
+      SourceArn: !Sub "{{resolve:ssm:/events/${InfrastructureName}/bus/${BusName}/${TagEnvironment}/arn}}"
+Outputs:
+  RuleArn:
+    Description: "The rule ARN."
+    Value: !GetAtt Rule.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-RuleArn"
+  RuleName:
+    Description: "The rule name."
+    Value: !Ref Rule
+    Export:
+      Name: !Sub "${AWS::StackName}-RuleName"
+  ArchiveArn:
+    Description: "The archive ARN."
+    Value: !GetAtt Archive.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-ArchiveArn"
+  ArchiveName:
+    Description: "The archive name."
+    Value: !Ref Archive
+    Export:
+      Name: !Sub "${AWS::StackName}-ArchiveName"
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: "General Configuration"
+      Parameters:
+      - InfrastructureName
+      - BusName
+      - ProjectName
+      - RuleDetailContext
+      - RuleState
+      - RuleTargetTopicBaseName
+      - RuleTargetSqsQueueBaseName
+    - Label:
+        default: "Archive Configuration"
+      Parameters:
+      - ArchiveDefaultRetentionDays
+    - Label:
+        default: "Tags"
+      Parameters:
+      - TagEnvironment
+    ParameterLabels:
+      # General Configuration
+      InfrastructureName:
+        default: "Infrastructure Name:"
+      BusName:
+        default: "Bus Name:"
+      ProjectName:
+        default: "Project Name:"
+      RuleDetailContext:
+        default: "Rule Detail Context:"
+      RuleState:
+        default: "Rule State:"
+      RuleTargetTopicBaseName:
+        default: "Rule Target Topic Base Name:"
+      RuleTargetSqsQueueBaseName:
+        default: "Rule Target SQS Queue Base Name:"
+      # Archive Configuration
+      ArchiveDefaultRetentionDays:
+        default: "Archive Default Retention Days:"
+      # Tags
+      TagEnvironment:
+        default: "Environment:"

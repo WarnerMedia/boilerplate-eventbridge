@@ -1,0 +1,10 @@
+{
+  "Parameters": {
+    "ActionMode": "REPLACE_ON_FAILURE",
+    "EnableRelease": "Yes",
+    "ApprovalEnvironment": "qa",
+    "CodeBuildRunAppTests": "Yes",
+    "CodeBuildRunInfrastructureTests": "Yes",
+    "EnableTestRule": "Yes"
+  }
+}

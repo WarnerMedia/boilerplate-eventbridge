@@ -1,0 +1,16 @@
+v1/build/aws/codebuild/buildspec/test/*
+v1/build/aws/codebuild/test/*
+v1/env/cfn/codebuild/build/*
+v1/env/cfn/codebuild/test/*
+v1/env/cfn/codepipeline/deploy/*
+v1/iac/cfn/events/schemas/standard.yaml
+v1/env/cfn/iam/role/*
+v1/iac/cfn/custom/*
+v1/iac/cfn/ec2/*
+v1/iac/cfn/events/*
+v1/iac/cfn/lambda/*
+v1/iac/cfn/secrets-manager/*
+v1/iac/cfn/sns/*
+v1/iac/cfn/sqs/*
+v1/src/*
+v1/package.json
